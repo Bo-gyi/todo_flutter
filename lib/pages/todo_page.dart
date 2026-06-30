@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:todo_app/controllers/task_controller.dart';
 import '../models/task.dart';
 import '../services/task_storage.dart';
 import '../models/task_filter.dart';
@@ -14,6 +15,7 @@ class TodoPage extends StatefulWidget {
 }
 
 class _TodoPageState extends State<TodoPage> {
+  final controller = TaskController();
   final List<Task> tasks = [];
   final TaskStorage storage = TaskStorage();
   TaskFilter selectedFilter = TaskFilter.all;
