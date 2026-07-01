@@ -64,9 +64,18 @@ class _TodoPageState extends State<TodoPage> {
                       final task = controller.tasks[index];
                       return TaskTile(
                         task: task,
-                        onToggle: () => toggleTaskDone(task),
+                        onToggle: () async {
+                          controller.toggleTaskDone(task);
+                          setState(() {});
+                          await commit();
+                        },
                         onEdit: () => showTaskDialog(task: task),
-                        onDelete: () => deleteTask(task),
+                        onDelete: () async {
+                          final deletedIndex = controller.deleteTask(task);
+                          showSnackBar(task, deletedIndex);
+                          setState(() {});
+                          await commit();
+                        },
                       );
                     },
                     separatorBuilder: (context, index) {
@@ -115,63 +124,22 @@ class _TodoPageState extends State<TodoPage> {
     await storage.saveTasks(controller.tasks);
   }
 
-  Future<bool> addTask(String taskTitle, String subtitle) async {
-    if (taskTitle.trim().isEmpty) return false;
-
-    setState(() {
-      controller.tasks.add(
-        Task(
-          title: taskTitle.trim(),
-          subtitle: subtitle.trim().isEmpty ? null : subtitle.trim(),
-        ),
-      );
-    });
-    await commit();
-    return true;
-  }
-
-  Future<bool> editTask(String title, String subtitle, Task task) async {
-    if (title.trim().isEmpty) return false;
-
-    setState(() {
-      task.title = title.trim();
-      task.subtitle = subtitle.trim().isEmpty ? null : subtitle.trim();
-    });
-    await commit();
-    return true;
-  }
-
-  Future<void> deleteTask(Task task) async {
-    final index = controller.tasks.indexOf(task);
-    setState(() {
-      controller.tasks.remove(task);
-    });
+  void showSnackBar(Task task, int index) {
     ScaffoldMessenger.of(context)
       ..hideCurrentSnackBar()
       ..showSnackBar(
         SnackBar(
-          content: Text('Deleted! index = $index'),
+          content: Text('Deleted!'),
           action: SnackBarAction(
             label: 'Undo',
-            onPressed: () => undoDelete(task, index),
+            onPressed: () async {
+              controller.undoDelete(task, index);
+              await commit();
+              setState(() {});
+            },
           ),
         ),
       );
-    await commit();
-  }
-
-  Future<void> undoDelete(Task task, int index) async {
-    setState(() {
-      controller.tasks.insert(index, task);
-    });
-    await commit();
-  }
-
-  Future<void> toggleTaskDone(Task task) async {
-    setState(() {
-      task.isDone = !task.isDone;
-    });
-    await commit();
   }
 
   void selectFilter(TaskFilter filter) {
@@ -198,17 +166,21 @@ class _TodoPageState extends State<TodoPage> {
           actionLabel: isEditing ? 'Edit' : 'Add',
           onSubmit: () async {
             if (isEditing) {
-              final edited = await editTask(
+              final edited = controller.editTask(
                 titleController.text,
                 subtitleController.text,
                 task,
               );
+              setState(() {});
+              await commit();
               if (edited && mounted) Navigator.of(dialogContext).pop();
             } else {
-              final added = await addTask(
+              final added = controller.addTask(
                 titleController.text,
                 subtitleController.text,
               );
+              setState(() {});
+              await commit();
               if (added && mounted) Navigator.of(dialogContext).pop();
             }
           },
