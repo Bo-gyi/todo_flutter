@@ -1,7 +1,9 @@
 import 'package:todo_app/models/task.dart';
 import 'package:todo_app/models/task_filter.dart';
+import 'package:todo_app/services/task_storage.dart';
 
 class TaskController {
+  final TaskStorage storage = TaskStorage();
   final List<Task> _tasks = [];
   TaskFilter selectedFilter = TaskFilter.all;
   bool isLoading = false;
@@ -54,5 +56,19 @@ class TaskController {
     task.isDone = !task.isDone;
   }
 
-  Future<void> loadSavedTasks() async {}
+  // Storage methods
+  Future<void> loadSavedTasks() async {
+    isLoading = true;
+    try {
+      final loadedTasks = await storage.loadTasks();
+      _tasks.clear();
+      _tasks.addAll(loadedTasks);
+    } finally {
+      isLoading = false;
+    }
+  }
+
+  Future<void> commit() async {
+    await storage.saveTasks(_tasks);
+  }
 }

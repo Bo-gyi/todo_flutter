@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:todo_app/controllers/task_controller.dart';
 import '../models/task.dart';
-import '../services/task_storage.dart';
 import '../models/task_filter.dart';
 import '../widgets/filter_button.dart';
 import '../widgets/task_tile.dart';
@@ -16,12 +15,11 @@ class TodoPage extends StatefulWidget {
 
 class _TodoPageState extends State<TodoPage> {
   final controller = TaskController();
-  final TaskStorage storage = TaskStorage();
 
   @override
-  void initState() {
+  initState() {
     super.initState();
-    loadSavedTasks();
+    loadTasks();
   }
 
   @override
@@ -67,14 +65,14 @@ class _TodoPageState extends State<TodoPage> {
                         onToggle: () async {
                           controller.toggleTaskDone(task);
                           setState(() {});
-                          await commit();
+                          await controller.commit();
                         },
                         onEdit: () => showTaskDialog(task: task),
                         onDelete: () async {
                           final deletedIndex = controller.deleteTask(task);
                           showSnackBar(task, deletedIndex);
                           setState(() {});
-                          await commit();
+                          await controller.commit();
                         },
                       );
                     },
@@ -95,33 +93,9 @@ class _TodoPageState extends State<TodoPage> {
   }
 
   // ---- helper functions ----
-
-  Future<void> loadSavedTasks() async {
-    setState(() {
-      controller.isLoading = true;
-    });
-    try {
-      final loadedTasks = await storage.loadTasks();
-      //mounted tells you whether this State object is still attached to the widget tree.
-      //For async methods that later call setState(), this is a very good habit.
-      if (!mounted) return;
-      setState(() {
-        controller.tasks.clear();
-        controller.tasks.addAll(loadedTasks);
-      });
-    } finally {
-      // to make app state didn't stuck in loading stage if loading throws.
-      setState(() {
-        if (mounted) {
-          controller.isLoading = false;
-        }
-      });
-    }
-  }
-
-  /// saves tasks by calling saveTasks method from storage class.
-  Future<void> commit() async {
-    await storage.saveTasks(controller.tasks);
+  Future<void> loadTasks() async {
+    await controller.loadSavedTasks();
+    setState(() {});
   }
 
   void showSnackBar(Task task, int index) {
@@ -134,7 +108,7 @@ class _TodoPageState extends State<TodoPage> {
             label: 'Undo',
             onPressed: () async {
               controller.undoDelete(task, index);
-              await commit();
+              await controller.commit();
               setState(() {});
             },
           ),
@@ -172,7 +146,7 @@ class _TodoPageState extends State<TodoPage> {
                 task,
               );
               setState(() {});
-              await commit();
+              await controller.commit();
               if (edited && mounted) Navigator.of(dialogContext).pop();
             } else {
               final added = controller.addTask(
@@ -180,7 +154,7 @@ class _TodoPageState extends State<TodoPage> {
                 subtitleController.text,
               );
               setState(() {});
-              await commit();
+              await controller.commit();
               if (added && mounted) Navigator.of(dialogContext).pop();
             }
           },
