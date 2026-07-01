@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:todo_app/controllers/task_controller.dart';
 import '../models/task.dart';
 import '../services/task_storage.dart';
 import '../models/task_filter.dart';
@@ -14,25 +15,8 @@ class TodoPage extends StatefulWidget {
 }
 
 class _TodoPageState extends State<TodoPage> {
-  final List<Task> tasks = [];
+  final controller = TaskController();
   final TaskStorage storage = TaskStorage();
-  TaskFilter selectedFilter = TaskFilter.all;
-  bool isLoading = false;
-  List<Task> get visibleTasks {
-    return switch (selectedFilter) {
-      TaskFilter.all => tasks,
-      TaskFilter.active => tasks.where((task) => !task.isDone).toList(),
-      TaskFilter.completed => tasks.where((task) => task.isDone).toList(),
-    };
-  }
-
-  String get emptyTasksMessage {
-    return switch (selectedFilter) {
-      TaskFilter.all => 'No tasks yet',
-      TaskFilter.active => 'No active tasks',
-      TaskFilter.completed => 'No completed tasks',
-    };
-  }
 
   @override
   void initState() {
@@ -52,32 +36,32 @@ class _TodoPageState extends State<TodoPage> {
               FilterButton(
                 name: 'All',
                 filter: TaskFilter.all,
-                selectedFilter: selectedFilter,
+                selectedFilter: controller.selectedFilter,
                 onPressed: () => selectFilter(TaskFilter.all),
               ),
               FilterButton(
                 name: 'Active',
                 filter: TaskFilter.active,
-                selectedFilter: selectedFilter,
+                selectedFilter: controller.selectedFilter,
                 onPressed: () => selectFilter(TaskFilter.active),
               ),
               FilterButton(
                 name: 'Completed',
                 filter: TaskFilter.completed,
-                selectedFilter: selectedFilter,
+                selectedFilter: controller.selectedFilter,
                 onPressed: () => selectFilter(TaskFilter.completed),
               ),
             ],
           ),
           Expanded(
-            child: isLoading
+            child: controller.isLoading
                 ? Center(child: Center(child: Icon(Icons.circle_outlined)))
-                : (visibleTasks.isEmpty)
-                ? Center(child: Text(emptyTasksMessage))
+                : (controller.tasks.isEmpty)
+                ? Center(child: Text(controller.emptyTasksMessage))
                 : ListView.separated(
-                    itemCount: visibleTasks.length,
+                    itemCount: controller.tasks.length,
                     itemBuilder: (context, index) {
-                      final task = visibleTasks[index];
+                      final task = controller.tasks[index];
                       return TaskTile(
                         task: task,
                         onToggle: () => toggleTaskDone(task),
@@ -105,7 +89,7 @@ class _TodoPageState extends State<TodoPage> {
 
   Future<void> loadSavedTasks() async {
     setState(() {
-      isLoading = true;
+      controller.isLoading = true;
     });
     try {
       final loadedTasks = await storage.loadTasks();
@@ -113,14 +97,14 @@ class _TodoPageState extends State<TodoPage> {
       //For async methods that later call setState(), this is a very good habit.
       if (!mounted) return;
       setState(() {
-        tasks.clear();
-        tasks.addAll(loadedTasks);
+        controller.tasks.clear();
+        controller.tasks.addAll(loadedTasks);
       });
     } finally {
       // to make app state didn't stuck in loading stage if loading throws.
       setState(() {
         if (mounted) {
-          isLoading = false;
+          controller.isLoading = false;
         }
       });
     }
@@ -128,14 +112,14 @@ class _TodoPageState extends State<TodoPage> {
 
   /// saves tasks by calling saveTasks method from storage class.
   Future<void> commit() async {
-    await storage.saveTasks(tasks);
+    await storage.saveTasks(controller.tasks);
   }
 
   Future<bool> addTask(String taskTitle, String subtitle) async {
     if (taskTitle.trim().isEmpty) return false;
 
     setState(() {
-      tasks.add(
+      controller.tasks.add(
         Task(
           title: taskTitle.trim(),
           subtitle: subtitle.trim().isEmpty ? null : subtitle.trim(),
@@ -158,15 +142,15 @@ class _TodoPageState extends State<TodoPage> {
   }
 
   Future<void> deleteTask(Task task) async {
-    final index = tasks.indexOf(task);
+    final index = controller.tasks.indexOf(task);
     setState(() {
-      tasks.remove(task);
+      controller.tasks.remove(task);
     });
     ScaffoldMessenger.of(context)
       ..hideCurrentSnackBar()
       ..showSnackBar(
         SnackBar(
-          content: Text('Deleted!'),
+          content: Text('Deleted! index = $index'),
           action: SnackBarAction(
             label: 'Undo',
             onPressed: () => undoDelete(task, index),
@@ -178,7 +162,7 @@ class _TodoPageState extends State<TodoPage> {
 
   Future<void> undoDelete(Task task, int index) async {
     setState(() {
-      tasks.insert(index, task);
+      controller.tasks.insert(index, task);
     });
     await commit();
   }
@@ -192,7 +176,7 @@ class _TodoPageState extends State<TodoPage> {
 
   void selectFilter(TaskFilter filter) {
     setState(() {
-      selectedFilter = filter;
+      controller.selectedFilter = filter;
     });
   }
 
